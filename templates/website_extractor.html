@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+
+{% block title %}Tavily Website Extractor Lab — LeadGen AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <h1 class="page-title">Tavily Website Extractor Lab</h1>
+                <span class="tag-chip" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 600;">
+                    🧪 Interactive Testbench
+                </span>
+            </div>
+            <p class="page-subtitle">
+                Paste any Tavily search response JSON below to test the multi-factor official website extraction algorithm, filter noise/social media, and resolve the exact company website.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Section 1: Input JSON & Target Configuration -->
+<section class="card config-card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <div class="card-title-group">
+            <span class="step-badge">1</span>
+            <div>
+                <h2 class="card-title">Tavily JSON Input & Target Context</h2>
+                <p class="card-subtitle">Provide company context and paste the raw JSON output from Tavily API</p>
+            </div>
+        </div>
+        <div class="card-actions">
+            <button type="button" class="btn btn-outline" onclick="loadSampleArtisoft()">
+                <span class="btn-icon">🔄</span> Load Artisoft Sample
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-extract-website" onclick="runExtractionAlgorithm()">
+                <span class="btn-icon">⚡</span> Extract Official Website
+            </button>
+        </div>
+    </div>
+
+    <div style="padding: 1.25rem 1.5rem;">
+        <!-- Target Context Row -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="filter-label" for="input-target-company">🏢 Target Company Name</label>
+                <input type="text" id="input-target-company" class="search-input" style="width: 100%; box-sizing: border-box;" value="Artisoft" placeholder="e.g. Artisoft">
+            </div>
+            <div>
+                <label class="filter-label" for="input-target-country">🌍 Target Country / Location</label>
+                <input type="text" id="input-target-country" class="search-input" style="width: 100%; box-sizing: border-box;" value="United States" placeholder="e.g. United States">
+            </div>
+            <div>
+                <label class="filter-label" for="input-target-industry">🏷️ Industry / Context Keywords</label>
+                <input type="text" id="input-target-industry" class="search-input" style="width: 100%; box-sizing: border-box;" value="Software POS Retail" placeholder="e.g. Software, POS, Retail, Healthcare">
+            </div>
+        </div>
+
+        <!-- Collapsible Tavily JSON Textarea -->
+        <details open style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 1rem;">
+            <summary style="font-weight: 600; cursor: pointer; color: var(--text-main); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>📋 Tavily Response JSON Payload (Click to Expand / Collapse)</span>
+                <span style="font-size: 0.78rem; color: #2563eb; text-decoration: underline;">Toggle View</span>
+            </summary>
+            <div style="margin-top: 0.75rem;">
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-bottom: 0.4rem;">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="formatInputJson()">Format JSON</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="clearJsonInput()">Clear</button>
+                </div>
+                <textarea 
+                    id="tavily-json-input" 
+                    class="json-box" 
+                    style="width: 100%; min-height: 240px; font-family: monospace; font-size: 0.85rem; line-height: 1.45; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-sizing: border-box; background: #ffffff; color: #0f172a;"
+                    placeholder="Paste Tavily API JSON response here..."
+                ></textarea>
+            </div>
+        </details>
+    </div>
+</section>
+
+<!-- Section 2: Real-Time Extraction Results -->
+<section class="card results-card" id="extraction-results-section" style="display: none; margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <div class="card-title-group">
+            <span class="step-badge">2</span>
+            <div>
+                <h2 class="card-title">Extracted Website & Confidence Analysis</h2>
+                <p class="card-subtitle">Resolved canonical root domain, multi-factor scoring breakdown, and noise filtration</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Winner Card -->
+    <div style="padding: 1.5rem;">
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac; border-radius: var(--radius-lg); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="background: #15803d; color: white; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        🏆 Selected Official Website
+                    </span>
+                    <span id="winner-confidence-badge" class="score-pill" style="background: #bbf7d0; color: #166534; font-weight: 700;">
+                        92% Match
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <img id="winner-favicon" src="" alt="favicon" style="width: 24px; height: 24px; border-radius: 4px; display: none;">
+                    <a id="winner-url-link" href="#" target="_blank" style="font-size: 1.5rem; font-weight: 700; color: #14532d; text-decoration: none;">
+                        https://www.example.com
+                    </a>
+                </div>
+                <div id="winner-reason" style="font-size: 0.88rem; color: #166534; margin-top: 0.5rem; max-width: 650px;">
+                    Reasoning will appear here.
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button type="button" class="btn btn-outline" style="background: white;" onclick="copyWinnerUrl()">
+                    <span class="btn-icon">📋</span> Copy URL
+                </button>
+                <a id="winner-visit-btn" href="#" target="_blank" class="btn btn-primary" style="background: #15803d; border-color: #15803d;">
+                    <span>Visit Website ↗</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Candidate Domains Scoring Table -->
+    <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+        <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">
+            📊 Valid Candidate Domains Comparison & Scoring Breakdown
+        </h3>
+        <div class="table-container">
+            <table class="leads-table">
+                <thead>
+                    <tr>
+                        <th style="width: 26%;">Candidate Domain</th>
+                        <th style="width: 14%;">Domain Stem Match</th>
+                        <th style="width: 12%;">Clean Homepage</th>
+                        <th style="width: 14%;">Title Affinity</th>
+                        <th style="width: 10%;">Result Depth</th>
+                        <th style="width: 12%;">Total Score</th>
+                        <th style="width: 12%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="candidates-table-body">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Discarded URLs & Noise Filter Accordion -->
+    <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+        <details style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 1rem;">
+            <summary style="font-weight: 600; cursor: pointer; color: var(--text-main); font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center;">
+                <span id="discarded-summary-title">🚫 Discarded Third-Party Directories & Social Media (0 Filtered)</span>
+                <span style="font-size: 0.78rem; color: #2563eb; text-decoration: underline;">Expand / Collapse</span>
+            </summary>
+            <div style="margin-top: 0.75rem;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    These URLs were automatically eliminated by the exclusion blacklist to prevent saving directory aggregators or social profiles as the official company website.
+                </p>
+                <div class="table-container">
+                    <table class="leads-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 45%;">Filtered URL</th>
+                                <th style="width: 25%;">Root Domain</th>
+                                <th style="width: 30%;">Disqualification Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="discarded-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </details>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Excluded domains (Social media, directories, investor aggregators, review portals)
+const EXCLUDED_BASE_DOMAINS = new Set([
+    "linkedin.com", "facebook.com", "twitter.com", "x.com", "instagram.com", "youtube.com",
+    "wikipedia.org", "glassdoor.com", "indeed.com", "clutch.co", "goodfirms.co", "yelp.com",
+    "yahoo.com", "bloomberg.com", "forbes.com", "reuters.com", "techcrunch.com", "medium.com",
+    "reddit.com", "quora.com", "crunchbase.com", "zoominfo.com", "apollo.io", "pitchbook.com",
+    "sortlist.com", "themanifest.com", "hubspot.com", "wellfound.com", "angel.co", "summitpartners.com",
+    "ycombinator.com", "a16z.com", "tiktok.com", "pinterest.com"
+]);
+
+// Listicle / Directory path patterns
+const LISTICLE_PATTERNS = ["/blog/", "/blogs/", "/news/", "/companies/", "/portfolio/", "/directory/", "/tag/", "/category/"];
+
+// Default Artisoft sample JSON provided by user
+const ARTISOFT_SAMPLE_JSON = {
+  "query": "Get the website of Artisoft",
+  "follow_up_questions": null,
+  "answer": null,
+  "images": [],
+  "results": [
+    {
+      "url": "https://artisoft.io",
+      "title": "ArtiSoft — Business Focused, IT Approved",
+      "content": "ArtiSoft technology\n\n# Business Focused – IT Approved\n\nArtiSoft is a Montreal-based consulting company founded in 2021 by technologists with extensive experience in processing US Healthcare data.\n\nWe are a tightly knit group of professionals with a passion for optimizing business processes and analytic models. We aim to build trusting and lasting relationships with our clients by providing expertise and solutions that make analytic workflow deployments easy, portable and scalable.\n\nArtiSoft synthesizes paid medical and pharmacy claims into a plain-language member health summary delivered to your agent's screen in under 10 seconds—entirely within your own AWS environment. Your data stays in your hands.\n\n## Products\n\n### JetStore Agentic AI [...] ## Why ArtiSoft?\n\nVery few companies operate entirely in clients' AWS environment, and none do at ArtiSoft's level of specificity — payer claims, eligibility and call centre AI, all deployed onsite, meeting your data security requirements.\n\nWe are passionate about delivering self-service solutions that follow IT best practices\n\n## Have a question? Let's talk.\n\nEmail us for more information about ArtiSoft, our consulting services, or to start a conversation with our team.\n\nArtiSoft [...] ## Products\n\n### JetStore Agentic AI\n\nAn open source minimalist analytic compute platform integrating both a rete rule engine and generative AI, deployed in your own AWS environment. Your data does not leave your private network.\n\n### AgentBrief\n\nConnects to your existing claim feeds and returns a structured, plain-language member summary before your agent even says hello.\n\n### Healthcare Corpus\n\nGenerates synthetic eligibility, medical and pharmacy claims that tell a coherent clinical story — reproducible to the byte, traceable row by row, with no real patient in it.\n\n## Who We Serve\n\nWe serve companies of all sizes—from start ups to large healthcare organizations. We typically start from raw data: we load it, then transform and augment it for downstream processing.\n\n## Why ArtiSoft?",
+      "score": 0.48630774,
+      "raw_content": null,
+      "favicon": "https://artisoft.io/favicon.png",
+      "id": "f55ad3-00"
+    },
+    {
+      "url": "https://www.summitpartners.com/companies/artisoft",
+      "title": "Summit Partners | Companies | Artisoft",
+      "content": "# Artisoft\n\nIPO 1991\n\nAcquired by Vertical Communications 2004\n\nArtisoft develops, manufactures, and markets LANtastic, the leading DOS-compatible, peer-to-peer local area network (LAN) system for small networks.\n\n## How Summit Partners Helped\n\n## Related News\n\n## Get the Latest from Summit Partners\n\nSubscribe to our newsletter to stay up to date on our partners, portfolio, and more.\n\n© Summit Partners L.P. All rights reserved.\n\nTwitter\n\nLinkedIn",
+      "score": 0.41620392,
+      "raw_content": null,
+      "favicon": "https://cdn.prod.website-files.com/654370a6dee9bc89637af1eb/65e0b2b317307cee90e34bae_Webclip-icon-Summit-logo_updated2024.png",
+      "id": "3f336c-01"
+    },
+    {
+      "url": "https://www.artisoftlabs.com/about-us",
+      "title": "About Us | Artisoft Labs",
+      "content": "# About Us\n\nWho We Are\n\n## We Create Innovative Solutions for Businesses\n\nArtisoft Labs is a team of innovators striving to provide novel digital solutions that integrate all systems and devices in a service station. We truly believe that innovation and creativity are the genesis of all solutions, and we strive to use that passion to create best-in-class, effective solutions that can transform your business. We want to partner with our customers and work with them to bring the fuels and convenience retail business industry to the technological forefront.\n\n## Memberships & Certifications\n\nVision + Mission\n\n## Our Vision and Mission [...] Vision + Mission\n\n## Our Vision and Mission\n\nWe strive to become a global leader at the forefront of the Retail technology landscape by providing our customers with innovative and effective IT solutions that are customized to their specific needs. Since 2009, our end-to-end solutions have been successfully implemented in 700+ fuel retail sites across 10 countries. Reach out today to learn how our solutions can unlock your business’ potential.\n\n United States\n Puerto Rico\n U.S. Virgin Islands\n British Virgin Islands\n Dominican Republic\n Saint Martin\n Bahamas\n Honduras\n Colombia\n El Salvador\n\n### Contact us today to learn how you can unlock your business' full potential.\n\nTalk with an Expert\n\nour customers\n\n## Trusted by brands you know.\n\n\\Customers vary by geographic region",
+      "score": 0.41392776,
+      "raw_content": null,
+      "favicon": "https://www.artisoftlabs.com/favicon.ico",
+      "id": "d01cae-02"
+    },
+    {
+      "url": "https://www.artisoftlabs.com/web/login",
+      "title": "Login | Artisoft Labs",
+      "content": "Artisoft Labs\nArtisoft Labs\n\n##### Navigation\n\n##### About Us\n\nArtisoft Labs creates integrated digital solutions for service stations, using innovation and creativity to modernize the fuels and convenience retail industry. We aim to partner with clients to drive technological advancement in the sector.\n\n##### Sales\n\nNorth America, LATAM + Caribbean\n\nsales@artisoftlabs.com\n\n(919) 266-4442\n\n##### Connect With Us\n\n##### Support\n\n(787) 920-1522, ext. 2\n\nSend us a text!\n\n##### Follow us",
+      "score": 0.388665,
+      "raw_content": null,
+      "favicon": "https://www.artisoftlabs.com/favicon.ico",
+      "id": "98daa1-03"
+    },
+    {
+      "url": "https://www.facebook.com/p/Artisoft-Labs-US-61550210245928",
+      "title": "Artisoft Labs - US | Facebook",
+      "content": "All reactions: 2 Like Comment",
+      "score": 0.38415,
+      "raw_content": null,
+      "favicon": "https://z-m-static.xx.fbcdn.net/rsrc.php/yj/r/rvjuhHLwc7B.ico",
+      "id": "b9d97e-04"
+    },
+    {
+      "url": "https://www.artisoftlabs.com/privacy-policy",
+      "title": "Privacy Policy | Artisoft Labs",
+      "content": "Privacy Policy | Artisoft Laboratories",
+      "score": 0.37930995,
+      "raw_content": null,
+      "favicon": "https://www.artisoftlabs.com/favicon.ico",
+      "id": "49a4d1-05"
+    },
+    {
+      "url": "https://www.linkedin.com/company/artisoft-labs-llc",
+      "title": "Artisoft Labs | LinkedIn",
+      "content": "Artisoft Labs LLC - Gas station POS solutions...",
+      "score": 0.37332788,
+      "raw_content": null,
+      "favicon": "https://static.licdn.com/aero-v1/sc/h/al2o9zrvru7aqj8e1x2rzsrca",
+      "id": "c1e5ff-06"
+    },
+    {
+      "url": "https://www.artisoftlabs.com",
+      "title": "Home | Artisoft Labs",
+      "content": "Turnkey Point-of-Sale Solutions\n\n## Tailored Gas Station POS Available Across North America\n\nFull-service point of sale (POS), payment processing, and fleet management solutions for convenience stores and gas station owners. Our intuitive design makes it easier than ever to access everything you need – from a POS and Back Office, to Forecourt Controllers and Mobile Apps.\n\nBook a Demo Contact Us \n\n## Trusted by North America's Leading Fuel Brands\n\nRevolutionizing POS for Remote Locations...",
+      "score": 0.3493335,
+      "raw_content": null,
+      "favicon": "https://www.artisoftlabs.com/favicon.ico",
+      "id": "76fe74-07"
+    },
+    {
+      "url": "https://www.artisoftlabs.com/book-demo",
+      "title": "Book Demo | Artisoft Labs",
+      "content": "Artisoft Labs - Book Your Demo Today...",
+      "score": 0.32257983,
+      "raw_content": null,
+      "favicon": "https://www.artisoftlabs.com/favicon.ico",
+      "id": "81e50f-08"
+    },
+    {
+      "url": "https://www.artisoftlabs.com/contactus",
+      "title": "Contact Us | Artisoft Labs",
+      "content": "Contact Artisoft Labs - Gas station POS experts...",
+      "score": 0.3153252,
+      "raw_content": null,
+      "favicon": "https://www.artisoftlabs.com/favicon.ico",
+      "id": "939532-09"
+    }
+  ],
+  "response_time": 4.34,
+  "request_id": "167bf4e3-9c83-41a1-960e-c8cc838a7272"
+};
+
+function loadSampleArtisoft() {
+    const el = document.getElementById("tavily-json-input");
+    if (el) {
+        el.value = JSON.stringify(ARTISOFT_SAMPLE_JSON, null, 2);
+    }
+    document.getElementById("input-target-company").value = "Artisoft";
+    document.getElementById("input-target-country").value = "United States";
+    document.getElementById("input-target-industry").value = "Software POS Retail";
+    showToast("Loaded Artisoft sample JSON!");
+}
+
+function clearJsonInput() {
+    const el = document.getElementById("tavily-json-input");
+    if (el) el.value = "";
+}
+
+function formatInputJson() {
+    const el = document.getElementById("tavily-json-input");
+    if (!el || !el.value.trim()) return;
+    try {
+        const parsed = JSON.parse(el.value);
+        el.value = JSON.stringify(parsed, null, 2);
+        showToast("Formatted JSON successfully.");
+    } catch (e) {
+        showToast("Invalid JSON syntax: " + e.message, true);
+    }
+}
+
+function cleanDomain(url) {
+    try {
+        const u = new URL(url);
+        let hostname = u.hostname.toLowerCase();
+        if (hostname.startsWith("www.")) hostname = hostname.substring(4);
+        return {
+            hostname: hostname,
+            origin: u.origin,
+            pathname: u.pathname,
+            isRoot: (u.pathname === "/" || u.pathname === "" || u.pathname === "/index.html" || u.pathname === "/home")
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+function runExtractionAlgorithm() {
+    const jsonStr = document.getElementById("tavily-json-input")?.value?.trim() || "";
+    if (!jsonStr) {
+        showToast("Please paste a Tavily JSON payload or click 'Load Artisoft Sample'.", true);
+        return;
+    }
+
+    let payload;
+    try {
+        payload = JSON.parse(jsonStr);
+    } catch (err) {
+        showToast("Invalid JSON: " + err.message, true);
+        return;
+    }
+
+    const targetCompany = (document.getElementById("input-target-company")?.value || "").trim().toLowerCase();
+    const targetCountry = (document.getElementById("input-target-country")?.value || "").trim().toLowerCase();
+    const targetIndustry = (document.getElementById("input-target-industry")?.value || "").trim().toLowerCase();
+    const targetSlug = targetCompany.replace(/[^a-z0-9]/g, "");
+
+    const results = payload.results || [];
+    if (!results || results.length === 0) {
+        showToast("No results found in Tavily payload.", true);
+        return;
+    }
+
+    // Step 1: Filter and group by root domain
+    const candidateMap = new Map();
+    const discardedList = [];
+
+    results.forEach((item) => {
+        const parsed = cleanDomain(item.url);
+        if (!parsed) {
+            discardedList.push({ url: item.url, domain: "—", reason: "Malformed URL" });
+            return;
+        }
+
+        const domain = parsed.hostname;
+
+        // Check social media & directories
+        let isExcluded = false;
+        let excludeReason = "";
+        for (const bad of EXCLUDED_BASE_DOMAINS) {
+            if (domain === bad || domain.endsWith("." + bad)) {
+                isExcluded = true;
+                excludeReason = `Blacklisted Domain (${bad})`;
+                break;
+            }
+        }
+
+        // Check directory/listicle path patterns
+        if (!isExcluded) {
+            for (const pat of LISTICLE_PATTERNS) {
+                if (parsed.pathname.toLowerCase().includes(pat)) {
+                    isExcluded = true;
+                    excludeReason = `Aggregator / Directory Path (${pat})`;
+                    break;
+                }
+            }
+        }
+
+        if (isExcluded) {
+            discardedList.push({ url: item.url, domain: domain, reason: excludeReason });
+            return;
+        }
+
+        // Add to candidate domain group
+        if (!candidateMap.has(domain)) {
+            candidateMap.set(domain, {
+                domain: domain,
+                origin: parsed.origin,
+                rootUrl: parsed.origin,
+                items: [],
+                hasCleanRoot: false,
+                favicon: item.favicon || null,
+                highestTavilyScore: 0,
+                combinedContent: "",
+                mainTitle: item.title || domain
+            });
+        }
+
+        const group = candidateMap.get(domain);
+        group.items.push(item);
+        if (parsed.isRoot) {
+            group.hasCleanRoot = true;
+            group.mainTitle = item.title || group.mainTitle;
+        }
+        if (item.score && item.score > group.highestTavilyScore) {
+            group.highestTavilyScore = item.score;
+        }
+        if (item.favicon && !group.favicon) {
+            group.favicon = item.favicon;
+        }
+        group.combinedContent += " " + (item.title || "") + " " + (item.content || "");
+    });
+
+    // Step 2: Multi-Factor Scoring
+    const candidates = Array.from(candidateMap.values());
+    if (candidates.length === 0) {
+        showToast("All results were filtered out as social media or directories.", true);
+        return;
+    }
+
+    candidates.forEach((cand) => {
+        let domainStem = cand.domain.split(".")[0].replace(/[^a-z0-9]/g, "");
+        let score = 0;
+
+        // Factor 1: Domain Stem Match (Weight: 35)
+        let stemScore = 0;
+        if (domainStem === targetSlug) {
+            stemScore = 35; // Exact match (e.g. artisoft == artisoft)
+        } else if (domainStem.startsWith(targetSlug) || targetSlug.startsWith(domainStem)) {
+            stemScore = 30; // Prefix match (e.g. artisoftlabs contains artisoft)
+        } else if (domainStem.includes(targetSlug)) {
+            stemScore = 20;
+        } else {
+            stemScore = 5;
+        }
+        cand.stemScore = stemScore;
+        score += stemScore;
+
+        // Factor 2: Homepage Availability Bonus (Weight: 25)
+        const homeScore = cand.hasCleanRoot ? 25 : 10;
+        cand.homeScore = homeScore;
+        score += homeScore;
+
+        // Factor 3: Title & Brand Affinity (Weight: 20)
+        let titleScore = 10;
+        const lowTitle = (cand.mainTitle || "").toLowerCase();
+        if (lowTitle.includes(targetCompany)) {
+            titleScore = 20;
+        }
+        cand.titleScore = titleScore;
+        score += titleScore;
+
+        // Factor 4: Search Depth & Frequency in Tavily (Weight: 20)
+        // More occurrences in Tavily indicates strong commercial site depth
+        const freqScore = Math.min(20, cand.items.length * 4);
+        cand.freqScore = freqScore;
+        score += freqScore;
+
+        // Context Bonus (Target Country & Industry match in snippet)
+        let contextBonus = 0;
+        const text = cand.combinedContent.toLowerCase();
+        if (targetCountry && text.includes(targetCountry)) contextBonus += 5;
+        if (targetIndustry) {
+            const indWords = targetIndustry.split(/\s+/).filter(w => w.length > 2);
+            indWords.forEach(w => {
+                if (text.includes(w)) contextBonus += 3;
+            });
+        }
+        cand.contextBonus = Math.min(10, contextBonus);
+        score += cand.contextBonus;
+
+        cand.totalScore = Math.min(100, score);
+    });
+
+    // Sort descending by total score
+    candidates.sort((a, b) => b.totalScore - a.totalScore);
+    const winner = candidates[0];
+
+    // Render Hero Winner Card
+    document.getElementById("winner-url-link").innerText = winner.rootUrl;
+    document.getElementById("winner-url-link").href = winner.rootUrl;
+    document.getElementById("winner-visit-btn").href = winner.rootUrl;
+    document.getElementById("winner-confidence-badge").innerText = `${winner.totalScore}% Confidence`;
+
+    const favImg = document.getElementById("winner-favicon");
+    if (winner.favicon) {
+        favImg.src = winner.favicon;
+        favImg.style.display = "inline-block";
+    } else {
+        favImg.style.display = "none";
+    }
+
+    const reasoning = `
+        <strong>Selected ${winner.domain}</strong>: 
+        Scored ${winner.totalScore}/100 based on strong domain stem match ('${targetSlug}'), 
+        ${winner.hasCleanRoot ? 'active verified homepage' : 'subpage match'}, 
+        high commercial depth (${winner.items.length} pages in Tavily results), and target profile context.
+    `;
+    document.getElementById("winner-reason").innerHTML = reasoning;
+
+    // Render Candidates Comparison Table
+    const candTbody = document.getElementById("candidates-table-body");
+    let candHtml = "";
+    candidates.forEach((cand, idx) => {
+        const isWinner = (idx === 0);
+        candHtml += `
+            <tr style="${isWinner ? 'background: #f0fdf4;' : ''}">
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        ${cand.favicon ? `<img src="${cand.favicon}" style="width: 16px; height: 16px; border-radius: 2px;">` : '🌐'}
+                        <a href="${cand.rootUrl}" target="_blank" style="font-weight: 600; color: #1e293b; text-decoration: none;">
+                            ${cand.domain} ↗
+                        </a>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+                        ${cand.mainTitle}
+                    </div>
+                </td>
+                <td>
+                    <span style="font-weight: 600; color: #0284c7;">${cand.stemScore}/35</span>
+                </td>
+                <td>
+                    <span style="font-weight: 600; color: ${cand.hasCleanRoot ? '#16a34a' : '#d97706'};">
+                        ${cand.hasCleanRoot ? '✓ Root Found (+25)' : 'Subpage (+10)'}
+                    </span>
+                </td>
+                <td>
+                    <span style="font-weight: 600; color: #059669;">${cand.titleScore}/20</span>
+                </td>
+                <td>
+                    <span class="tag-chip" style="font-size: 0.78rem;">${cand.items.length} page(s)</span>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span style="font-size: 1.05rem; font-weight: 700; color: ${isWinner ? '#16a34a' : '#475569'};">
+                            ${cand.totalScore}
+                        </span>
+                        <span style="font-size: 0.72rem; color: #64748b;">/100</span>
+                    </div>
+                </td>
+                <td>
+                    ${isWinner 
+                        ? `<span class="score-pill" style="background: #dcfce7; color: #15803d; font-weight: 700;">🏆 Selected</span>` 
+                        : `<button type="button" class="btn btn-sm btn-outline" onclick="selectAlternative('${cand.rootUrl}', ${cand.totalScore})">Choose</button>`
+                    }
+                </td>
+            </tr>
+        `;
+    });
+    candTbody.innerHTML = candHtml;
+
+    // Render Discarded URLs Table
+    const discTbody = document.getElementById("discarded-table-body");
+    document.getElementById("discarded-summary-title").innerText = `🚫 Discarded Third-Party Directories & Social Media (${discardedList.length} Filtered)`;
+    let discHtml = "";
+    if (discardedList.length === 0) {
+        discHtml = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No URLs were discarded.</td></tr>`;
+    } else {
+        discardedList.forEach(item => {
+            discHtml += `
+                <tr>
+                    <td>
+                        <a href="${item.url}" target="_blank" style="font-size: 0.8rem; color: #64748b; word-break: break-all; text-decoration: none;">
+                            ${item.url} ↗
+                        </a>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.82rem; font-weight: 600; color: #334155;">${item.domain}</span>
+                    </td>
+                    <td>
+                        <span class="tag-chip" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 0.75rem;">
+                            ${item.reason}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    discTbody.innerHTML = discHtml;
+
+    // Show Results Section
+    const section = document.getElementById("extraction-results-section");
+    section.style.display = "block";
+    section.scrollIntoView({ behavior: "smooth" });
+    showToast(`Successfully evaluated ${results.length} Tavily results. Winner: ${winner.domain}!`);
+}
+
+function selectAlternative(url, score) {
+    document.getElementById("winner-url-link").innerText = url;
+    document.getElementById("winner-url-link").href = url;
+    document.getElementById("winner-visit-btn").href = url;
+    document.getElementById("winner-confidence-badge").innerText = `${score}% (Manual Override)`;
+    document.getElementById("winner-reason").innerHTML = `<strong>Manually Selected Override</strong>: User chose ${url} as the preferred company website.`;
+    showToast(`Updated official website to ${url}`);
+}
+
+function copyWinnerUrl() {
+    const url = document.getElementById("winner-url-link")?.innerText || "";
+    navigator.clipboard.writeText(url).then(() => {
+        showToast("Copied website URL to clipboard!");
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Pre-populate with Artisoft sample on first load
+    loadSampleArtisoft();
+});
+</script>
+{% endblock %}

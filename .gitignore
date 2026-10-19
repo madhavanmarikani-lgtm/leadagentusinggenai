@@ -1,0 +1,48 @@
+# Virtual Environment
+env/
+venv/
+ENV/
+.venv/
+
+# Environment Variables & Secrets (CRITICAL: Do NOT commit)
+.env
+.env.local
+*.env
+
+# SQLite Database
+*.db
+*.sqlite3
+leads.db
+
+# Python cache & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Output & Temp folders
+output/
+scratch/
+*.log
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

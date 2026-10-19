@@ -1,0 +1,925 @@
+{% extends "base.html" %}
+
+{% block title %}Coresignal AI Executive Search — LeadGen AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <h1 class="page-title">Coresignal AI Executive Search</h1>
+            </div>
+            <p class="page-subtitle">Natural Language Decision-Maker Discovery: Search verified executive leaders and companies across 900M+ global professional records.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Section 1: Agentic Search Query Console -->
+<section class="card config-card">
+    <div class="card-header">
+        <div class="card-title-group">
+            <span class="step-badge">1</span>
+            <div>
+                <h2 class="card-title">Agentic Search Prompt & Parameters</h2>
+                <p class="card-subtitle">Describe target decision-makers, company types, locations, and headcount in plain English</p>
+            </div>
+        </div>
+        <div class="card-actions">
+            <button type="button" class="btn btn-outline" id="btn-toggle-settings" onclick="toggleSettingsDrawer()">
+                <span class="btn-icon">⚙️</span> Search Filters
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-run-coresignal" onclick="executeCoresignalSearch()">
+                <span class="btn-icon">⚡</span> Execute Agentic Search
+            </button>
+        </div>
+    </div>
+
+    <div style="padding: 1.25rem 1.5rem;">
+        <!-- Natural Language Prompt Box -->
+        <label class="filter-label" for="coresignal-prompt-input">
+            <span class="filter-icon">💬</span> Natural Language Lead Search Prompt:
+        </label>
+        <textarea 
+            id="coresignal-prompt-input" 
+            class="search-input" 
+            style="width: 100%; min-height: 90px; padding: 0.75rem 1rem; font-size: 0.95rem; line-height: 1.45; border-radius: var(--radius-md); box-sizing: border-box;"
+            placeholder="e.g. Find 5 US based Software Development Companies whose employee count is 20 to 100 with their CEO , Founder name"
+        >{{ default_prompt }}</textarea>
+
+        <!-- Quick Idea Templates -->
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem;">
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Quick Templates:</span>
+            <button type="button" class="tag-chip" style="cursor: pointer;" onclick="setPromptTemplate('Find 5 US based Software Dvelopment Companies whose employee count is 20 to 100 with their CEO , Founder name')">
+                💻 US Software Dev (20-100 emp) + CEO/Founder
+            </button>
+            <button type="button" class="tag-chip" style="cursor: pointer;" onclick="setPromptTemplate('Find 10 United Kingdom digital agencies whose employee count is 50 to 200 with Managing Director or CEO')">
+                🇬🇧 UK Digital Agencies (50-200 emp) + Managing Director
+            </button>
+            <button type="button" class="tag-chip" style="cursor: pointer;" onclick="setPromptTemplate('Find US B2B SaaS startups with 20 to 100 employees and Chief Technology Officer (CTO) or VP of Engineering')">
+                🚀 US SaaS (20-100 emp) + CTO
+            </button>
+        </div>
+
+        <!-- Collapsible Parameters Drawer -->
+        <div id="coresignal-settings-drawer" class="settings-drawer" style="display: none;">
+            <input type="hidden" id="cs-entity" value="employee">
+            <div>
+                <label class="filter-label">Match Threshold</label>
+                <input type="number" id="cs-threshold" class="search-input" style="min-width: 100px; width: 100%; padding: 0.4rem 0.6rem;" value="0.97" min="0.70" max="1.0" step="0.01">
+            </div>
+            <div>
+                <label class="filter-label">Return Data</label>
+                <select id="cs-return-data" class="form-select form-select-sm">
+                    <option value="true" selected>true (Full Records)</option>
+                    <option value="false">false (Query Only)</option>
+                </select>
+            </div>
+            <div>
+                <label class="filter-label">Output Limit</label>
+                <select id="cs-max-results" class="form-select form-select-sm">
+                    <option value="auto" selected>Auto (e.g. "Find 2" → 2 leads)</option>
+                    <option value="2">2 Leads</option>
+                    <option value="5">5 Leads</option>
+                    <option value="10">10 Leads</option>
+                    <option value="20">All Preview Leads (20)</option>
+                </select>
+            </div>
+            <div>
+                <label class="filter-label">Custom API Key (Optional)</label>
+                <input type="password" id="cs-api-key" class="search-input" style="min-width: 160px; width: 100%; padding: 0.4rem 0.6rem;" placeholder="Uses system key if blank">
+            </div>
+            <div style="display: flex; align-items: flex-end; padding-bottom: 0.25rem;">
+                <label class="filter-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0; user-select: none; font-size: 0.85rem; color: #1e293b;">
+                    <input type="checkbox" id="cs-exclude-saved" checked style="width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer;">
+                    <span>🛡️ Exclude already saved leads</span>
+                </label>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Live Progress Banner -->
+<div id="cs-search-progress-banner" class="progress-banner" style="display: none;">
+    <div class="progress-spinner"></div>
+    <div class="progress-content">
+        <div class="progress-title" id="cs-progress-title">Coresignal Agentic AI is converting prompt into Elasticsearch DSL...</div>
+        <div class="progress-sub" id="cs-progress-sub">Executing fast search across 900M+ multi-source employee records</div>
+    </div>
+</div>
+
+<!-- Section 2: Results & Query Intelligence -->
+<section class="card results-card" id="cs-results-section" style="display: none;">
+    <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
+        <div class="card-title-group">
+            <span class="step-badge">2</span>
+            <div>
+                <h2 class="card-title" id="cs-results-title">Matched Decision-Makers</h2>
+                <p class="card-subtitle" id="cs-results-sub">Verified executive leadership from live Coresignal professional dataset</p>
+            </div>
+        </div>
+        <div class="card-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline" id="btn-next-batch" onclick="loadNextUniqueBatch()" style="display: none;">
+                <span class="btn-icon">🔄</span> Next Unique Batch
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-save-all-leads" onclick="saveAllCoresignalLeads()">
+                <span class="btn-icon">💾</span> Save All to Leads Database
+            </button>
+        </div>
+    </div>
+
+    <!-- Deduplication / Skipped Existing Leads Banner -->
+    <div id="cs-dedup-badge-container" style="display: none; padding: 0.75rem 1.5rem 0 1.5rem;"></div>
+
+    <!-- Summary Metrics Grid -->
+    <div class="metrics-grid" style="padding: 1.25rem 1.5rem 0 1.5rem;">
+        <div class="metric-card">
+            <div class="metric-val" id="metric-cs-count">0</div>
+            <div class="metric-lbl">Matched Leaders</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-val" id="metric-cs-companies">0</div>
+            <div class="metric-lbl">Unique Companies</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-val" id="metric-cs-headcount">20–100</div>
+            <div class="metric-lbl">Employee Range</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-val" id="metric-cs-country">US</div>
+            <div class="metric-lbl">Target HQ</div>
+        </div>
+    </div>
+
+    <!-- Collapsible Search Query Viewer -->
+    <div style="padding: 1.25rem 1.5rem 0.5rem 1.5rem;">
+        <details style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 1rem;">
+            <summary style="font-weight: 600; cursor: pointer; color: var(--text-main); font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>🔍 Inspect AI Generated Query (Elasticsearch DSL)</span>
+                <span style="font-size: 0.75rem; color: #2563eb; text-decoration: underline;">Expand / Collapse</span>
+            </summary>
+            <div style="margin-top: 0.75rem;">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 0.4rem;">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="copyEsQuery()">Copy Query</button>
+                </div>
+                <pre class="json-box" id="cs-es-query-code"><code>// Query will appear here after execution</code></pre>
+            </div>
+        </details>
+    </div>
+
+    <!-- Leads Table Container -->
+    <div class="table-container" style="padding: 1rem 1.5rem 1.5rem 1.5rem;">
+        <table class="leads-table" id="cs-leads-table">
+            <thead>
+                <tr>
+                    <th style="width: 24%; text-align: left;">Decision-Maker</th>
+                    <th style="width: 17%; text-align: left;">Title / Role</th>
+                    <th style="width: 20%; text-align: left;">Company & Website</th>
+                    <th style="width: 14%; text-align: left;">Industry</th>
+                    <th style="width: 7%; text-align: center;">Employees</th>
+                    <th style="width: 5%; text-align: center;">Country</th>
+                    <th style="width: 5%; text-align: center;">Score</th>
+                    <th style="width: 8%; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="cs-table-body">
+                <!-- Dynamically populated -->
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Executive Profile Detail Modal -->
+<div id="cs-lead-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog" style="max-width: 650px;">
+        <div class="modal-header">
+            <div class="modal-title-group" style="display: flex; align-items: center; gap: 0.85rem;">
+                <div id="modal-lead-avatar" style="width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.15rem; box-shadow: 0 2px 8px rgba(37,99,235,0.25); flex-shrink: 0;">
+                    EL
+                </div>
+                <div>
+                    <h3 class="modal-title" id="modal-lead-name" style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-main);">
+                        Executive Profile
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                        <span id="modal-lead-title" style="font-size: 0.88rem; color: var(--text-muted); font-weight: 500;">Title</span>
+                        <span id="modal-lead-level" class="tag-chip" style="font-size: 0.75rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; padding: 2px 8px;">C-Level</span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="modal-close" onclick="closeLeadModal()">×</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+            <!-- Key Intelligence Cards Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
+                        🏢 Company & Official Website
+                    </div>
+                    <div id="modal-lead-company" style="font-size: 1rem; font-weight: 600; color: var(--text-main);">
+                        Company Name
+                    </div>
+                    <div id="modal-lead-website-container" style="font-size: 0.82rem; margin-top: 4px;">
+                        <!-- Website / Domain Pill -->
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
+                        👥 Headcount & HQ
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
+                        <span id="modal-lead-headcount" class="emp-count-badge" style="font-weight: 600;">20-100</span>
+                        <span id="modal-lead-country" class="country-pill country-us">US</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Industry & Keywords -->
+            <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.45rem;">
+                    🏷️ Industry & Focus Areas
+                </div>
+                <div id="modal-lead-industry" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem; font-size: 0.95rem;">
+                    Software Development
+                </div>
+                <div id="modal-lead-tags" style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                    <!-- Keyword chips rendered here -->
+                </div>
+            </div>
+
+            <!-- Profile & Relevance Row -->
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">
+                        AI Relevance Score
+                    </div>
+                    <div id="modal-lead-score" style="font-size: 1.15rem; font-weight: 700; color: #10b981;">
+                        0.98 / 1.00
+                    </div>
+                </div>
+                <div id="modal-lead-linkedin-container">
+                    <!-- LinkedIn Link Button -->
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+            <button type="button" class="btn btn-outline" onclick="closeLeadModal()">Close</button>
+            <div id="modal-lead-save-container">
+                <button type="button" class="btn btn-primary" id="modal-btn-save" onclick="saveLeadFromModal()">
+                    <span class="btn-icon">💾</span> Save to Leads Database
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let lastCoresignalResult = null;
+const savedLeadIndices = new Set();
+let currentModalIdx = null;
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getInitials(name) {
+    if (!name) return "EX";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function resolveIndustry(item, exp) {
+    if (exp && exp.company_industry && exp.company_industry.trim() && exp.company_industry.toLowerCase() !== "none") {
+        return exp.company_industry.trim();
+    }
+    if (exp && Array.isArray(exp.company_categories_and_keywords) && exp.company_categories_and_keywords.length > 0) {
+        const tag = exp.company_categories_and_keywords[0];
+        return tag.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+    if (item && item.company_industry && item.company_industry.trim()) {
+        return item.company_industry.trim();
+    }
+    return "General Business";
+}
+
+function setPromptTemplate(text) {
+    const el = document.getElementById("coresignal-prompt-input");
+    if (el) {
+        el.value = text;
+        el.focus();
+    }
+}
+
+function toggleSettingsDrawer() {
+    const drawer = document.getElementById("coresignal-settings-drawer");
+    if (drawer) {
+        drawer.style.display = (drawer.style.display === "none") ? "grid" : "none";
+    }
+}
+
+let currentSearchOffset = 0;
+
+async function executeCoresignalSearch(isNextBatch = false) {
+    if (!isNextBatch) {
+        currentSearchOffset = 0;
+    }
+    const promptInput = document.getElementById("coresignal-prompt-input");
+    const prompt = (promptInput?.value || "").trim();
+    if (!prompt) {
+        showToast("Please enter a search prompt.", true);
+        promptInput?.focus();
+        return;
+    }
+
+    const threshold = parseFloat(document.getElementById("cs-threshold")?.value || "0.97");
+    const entity = document.getElementById("cs-entity")?.value || "employee";
+    const returnData = (document.getElementById("cs-return-data")?.value === "true");
+    const apiKey = document.getElementById("cs-api-key")?.value || "";
+    const maxResultsVal = document.getElementById("cs-max-results")?.value || "auto";
+    const limit = (maxResultsVal === "auto") ? null : parseInt(maxResultsVal, 10);
+    const excludeSaved = document.getElementById("cs-exclude-saved") ? document.getElementById("cs-exclude-saved").checked : true;
+
+    const runBtn = document.getElementById("btn-run-coresignal");
+    const nextBtn = document.getElementById("btn-next-batch");
+    const progressBanner = document.getElementById("cs-search-progress-banner");
+    const progressTitle = document.getElementById("cs-progress-title");
+    const progressSub = document.getElementById("cs-progress-sub");
+    const resultsSection = document.getElementById("cs-results-section");
+
+    if (isNextBatch && nextBtn) {
+        nextBtn.disabled = true;
+        nextBtn.innerHTML = '<span class="progress-spinner" style="width: 14px; height: 14px; margin-right: 6px;"></span> Loading Next...';
+    } else if (runBtn) {
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<span class="progress-spinner" style="width: 14px; height: 14px; margin-right: 6px;"></span> Querying Coresignal...';
+    }
+
+    if (progressBanner) {
+        progressBanner.style.display = "flex";
+        progressTitle.innerText = isNextBatch 
+            ? "Fetching next unique batch of verified leaders..." 
+            : "Coresignal Agentic AI is converting prompt into Elasticsearch DSL...";
+        progressSub.innerText = `Prompt: "${prompt.substring(0, 80)}${prompt.length > 80 ? '...' : ''}" ${currentSearchOffset > 0 ? `(Offset: ${currentSearchOffset})` : ''}`;
+    }
+
+    const startTime = performance.now();
+
+    try {
+        const response = await fetch("/api/coresignal/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                prompt: prompt,
+                threshold: threshold,
+                entity: entity,
+                return_data: returnData,
+                api_key: apiKey,
+                limit: limit,
+                exclude_saved: excludeSaved,
+                offset: currentSearchOffset
+            })
+        });
+
+        const data = await response.json();
+        const durationSec = ((performance.now() - startTime) / 1000).toFixed(2);
+
+        if (!data.success) {
+            console.error("%c[Coresignal Error Response]:%c", "color: #ef4444; font-weight: bold;", data.error || data);
+            throw new Error(data.error || "Failed to fetch Coresignal results.");
+        }
+
+        lastCoresignalResult = data;
+        savedLeadIndices.clear();
+        const items = data.data || [];
+
+        console.group(
+            `%c[Coresignal Success]%c Retrieved %c${items.length} live records%c in ${durationSec}s!`,
+            "color: #10b981; font-weight: bold; font-size: 13px;",
+            "color: #334155; font-size: 13px;",
+            "color: #10b981; font-weight: bold; font-size: 13px;",
+            "color: #334155; font-size: 13px;"
+        );
+        console.log("Generated Elasticsearch DSL Query:", data.query);
+        console.log("Output Leads Array:", items);
+        console.log("Deduplication Stats:", {
+            total_raw: data.total_candidates,
+            unique_fresh: data.unique_fresh_count,
+            skipped_existing: data.skipped_existing_count,
+            offset: data.offset,
+            has_more: data.has_more_unique,
+            remaining: data.remaining_unique
+        });
+        console.groupEnd();
+
+        renderCoresignalResults(data);
+
+        // Update Next Unique Batch button
+        if (nextBtn) {
+            if (data.has_more_unique && data.remaining_unique > 0) {
+                nextBtn.style.display = "inline-flex";
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = `<span class="btn-icon">🔄</span> Next Unique Batch (${data.remaining_unique} more)`;
+            } else {
+                nextBtn.style.display = "none";
+            }
+        }
+
+        // Deduplication info banner
+        const dedupBadgeContainer = document.getElementById("cs-dedup-badge-container");
+        if (dedupBadgeContainer) {
+            if (data.skipped_existing_count > 0) {
+                dedupBadgeContainer.innerHTML = `
+                    <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 0.4rem 0.85rem; border-radius: var(--radius-md); font-size: 0.84rem; font-weight: 500;">
+                        <span>🛡️ Deduplicated: Filtered out <strong>${data.skipped_existing_count}</strong> lead(s) already saved in your database — displaying <strong>${items.length}</strong> fresh unique leaders.</span>
+                    </div>
+                `;
+                dedupBadgeContainer.style.display = "block";
+            } else {
+                dedupBadgeContainer.style.display = "none";
+            }
+        }
+
+        let toastMsg = `Retrieved ${items.length} verified records via live Coresignal AI in ${durationSec}s!`;
+        if (data.skipped_existing_count > 0) {
+            toastMsg = `Retrieved ${items.length} fresh leads (skipped ${data.skipped_existing_count} already in database) in ${durationSec}s!`;
+        } else if (data.requested_limit && data.total_candidates && data.total_candidates > items.length) {
+            toastMsg = `Retrieved top ${items.length} leaders (matched prompt count "${data.requested_limit}") in ${durationSec}s!`;
+        }
+        showToast(toastMsg);
+
+        if (resultsSection) {
+            resultsSection.style.display = "block";
+            resultsSection.scrollIntoView({ behavior: "smooth" });
+        }
+
+    } catch (err) {
+        console.error("%c[Coresignal Network/Execution Error]:%c", "color: #ef4444; font-weight: bold;", err);
+        showToast(`Search error: ${err.message}`, true);
+    } finally {
+        if (runBtn) {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<span class="btn-icon">⚡</span> Execute Agentic Search';
+        }
+        if (nextBtn) {
+            nextBtn.disabled = false;
+        }
+        if (progressBanner) {
+            progressBanner.style.display = "none";
+        }
+    }
+}
+
+function loadNextUniqueBatch() {
+    const step = lastCoresignalResult?.count || 2;
+    currentSearchOffset += step;
+    executeCoresignalSearch(true);
+}
+
+function renderCoresignalResults(res) {
+    const items = res.data || [];
+    const query = res.query || {};
+
+    // Render Metrics
+    document.getElementById("metric-cs-count").innerText = items.length;
+    
+    const uniqueCompanies = new Set(items.map(i => i.company_name).filter(Boolean));
+    document.getElementById("metric-cs-companies").innerText = uniqueCompanies.size;
+
+    let detectedHq = "US";
+    let detectedHeadcount = "20–100";
+    if (items.length > 0) {
+        const firstExp = (items[0].experience && items[0].experience[0]) || {};
+        detectedHq = (firstExp.company_hq_country_iso2 || "US").toUpperCase();
+        if (firstExp.company_employees_count) {
+            detectedHeadcount = String(firstExp.company_employees_count);
+        }
+    }
+    document.getElementById("metric-cs-headcount").innerText = detectedHeadcount;
+    document.getElementById("metric-cs-country").innerText = detectedHq;
+
+    // Display ES Query
+    const esCodeEl = document.getElementById("cs-es-query-code");
+    if (esCodeEl) {
+        esCodeEl.textContent = JSON.stringify(query, null, 2);
+    }
+
+    // Reset Save All Button
+    const saveAllBtn = document.getElementById("btn-save-all-leads");
+    if (saveAllBtn) {
+        saveAllBtn.className = "btn btn-primary";
+        saveAllBtn.disabled = false;
+        saveAllBtn.innerHTML = '<span class="btn-icon">💾</span> Save All to Leads Database';
+    }
+
+    // Render Table
+    const tbody = document.getElementById("cs-table-body");
+    if (!tbody) return;
+
+    if (items.length === 0) {
+        tbody.innerHTML = `
+            <tr class="empty-state-row">
+                <td colspan="8">
+                    <div class="empty-state">
+                        <span class="empty-icon">🔍</span>
+                        <h3>No matching records returned</h3>
+                        <p>Try adjusting your prompt or lowering the threshold.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let rowsHtml = "";
+    items.forEach((item, idx) => {
+        const expList = item.experience || [];
+        const exp = expList[0] || {};
+        const empCount = exp.company_employees_count || "—";
+        const industry = resolveIndustry(item, exp);
+        const countryIso = (exp.company_hq_country_iso2 || "US").toUpperCase();
+        const score = item._score ? Number(item._score).toFixed(2) : "—";
+        const title = item.active_experience_title || exp.position_title || "Executive";
+        const linkedIn = item.linkedin_url 
+            ? `<a href="${item.linkedin_url}" target="_blank" onclick="event.stopPropagation()" style="color: #2563eb; text-decoration: none; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.2rem; font-weight: 500;">LinkedIn ↗</a>` 
+            : "";
+
+        const compDomain = item.domain || exp.company_domain;
+        const compWeb = item.website_url || exp.company_website;
+        let websiteLinkHtml = "";
+        if (compWeb && compDomain) {
+            websiteLinkHtml = `<a href="${compWeb}" target="_blank" onclick="event.stopPropagation()" style="font-size: 0.78rem; color: #2563eb; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; font-weight: 500;">🌐 ${escapeHtml(compDomain)} ↗</a>`;
+        } else if (compDomain) {
+            websiteLinkHtml = `<span style="font-size: 0.76rem; color: #475569; display: inline-flex; align-items: center; gap: 3px;">🌐 ${escapeHtml(compDomain)}</span>`;
+        } else {
+            const rawSlug = (item.company_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            websiteLinkHtml = `<span style="font-size: 0.75rem; color: #94a3b8; display: inline-flex; align-items: center; gap: 3px;">🌐 ${rawSlug ? rawSlug + '.com' : 'Pending'}</span>`;
+        }
+
+        const isSaved = savedLeadIndices.has(idx) || Boolean(item.is_saved_in_db);
+        const btnLabel = isSaved ? (item.is_saved_in_db && !savedLeadIndices.has(idx) ? 'In Database' : 'Lead Saved') : 'Save';
+
+        rowsHtml += `
+            <tr id="cs-row-${idx}" style="cursor: pointer; transition: background-color 0.15s ease;" onclick="openLeadModal(${idx})" title="Click to view executive profile details">
+                <td style="text-align: left; vertical-align: middle;">
+                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                        <div style="width: 34px; height: 34px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0;">
+                            ${getInitials(item.full_name)}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #0f172a; text-decoration: underline; text-decoration-color: #cbd5e1; text-underline-offset: 3px;">
+                                ${escapeHtml(item.full_name || 'Executive')}
+                            </div>
+                            <div style="margin-top: 2px;">${linkedIn}</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="text-align: left; vertical-align: middle;">
+                    <span style="font-size: 0.86rem; color: #334155; font-weight: 500;">${escapeHtml(title)}</span>
+                </td>
+                <td style="text-align: left; vertical-align: middle;">
+                    <div style="font-weight: 600; color: #0f172a; font-size: 0.92rem;">${escapeHtml(item.company_name || '—')}</div>
+                    <div id="row-site-container-${idx}" style="margin-top: 3px;">
+                        ${websiteLinkHtml}
+                    </div>
+                </td>
+                <td style="text-align: left; vertical-align: middle;">
+                    <span class="tag-chip" style="font-size: 0.8rem; font-weight: 500; background: #f8fafc; color: #334155; border: 1px solid #e2e8f0;">
+                        ${escapeHtml(industry)}
+                    </span>
+                </td>
+                <td style="text-align: center; vertical-align: middle;">
+                    <span class="emp-count-badge">${empCount}</span>
+                </td>
+                <td style="text-align: center; vertical-align: middle;">
+                    <span class="country-pill country-${countryIso.toLowerCase()}">${countryIso}</span>
+                </td>
+                <td style="text-align: center; vertical-align: middle;">
+                    <span class="score-pill">${score}</span>
+                </td>
+                <td onclick="event.stopPropagation()" style="text-align: center; vertical-align: middle;">
+                    <div style="display: inline-flex; gap: 0.35rem; align-items: center; justify-content: center;">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="openLeadModal(${idx})" title="View Details" style="padding: 0.3rem 0.55rem; font-size: 0.85rem;">
+                            🔍
+                        </button>
+                        <button type="button" class="btn btn-sm ${isSaved ? 'btn-saved' : 'btn-outline'}" id="btn-save-${idx}" onclick="saveSingleCoresignalLead(${idx})" ${isSaved ? 'disabled' : ''} style="white-space: nowrap; font-size: 0.82rem; padding: 0.3rem 0.65rem;">
+                            ${isSaved ? '<span class="btn-icon">✓</span> ' + btnLabel : '💾 Save'}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = rowsHtml;
+}
+
+function openLeadModal(idx) {
+    if (!lastCoresignalResult || !lastCoresignalResult.data || !lastCoresignalResult.data[idx]) return;
+    currentModalIdx = idx;
+    const item = lastCoresignalResult.data[idx];
+    const exp = (item.experience && item.experience[0]) || {};
+    const industry = resolveIndustry(item, exp);
+    const countryIso = (exp.company_hq_country_iso2 || "US").toUpperCase();
+    const score = item._score ? Number(item._score).toFixed(2) : "0.97";
+    const title = item.active_experience_title || exp.position_title || "Executive";
+    const level = exp.management_level || "Executive";
+
+    // Set Text Fields
+    document.getElementById("modal-lead-avatar").innerText = getInitials(item.full_name);
+    document.getElementById("modal-lead-name").innerText = item.full_name || "Executive Profile";
+    document.getElementById("modal-lead-title").innerText = title;
+    document.getElementById("modal-lead-level").innerText = level;
+    document.getElementById("modal-lead-company").innerText = item.company_name || "—";
+    
+    // Website in modal
+    const modalWebsiteContainer = document.getElementById("modal-lead-website-container");
+    if (modalWebsiteContainer) {
+        const mDomain = item.domain || exp.company_domain;
+        const mWeb = item.website_url || exp.company_website;
+        if (mWeb) {
+            modalWebsiteContainer.innerHTML = `
+                <a href="${mWeb}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    🌐 ${escapeHtml(mWeb)} ↗
+                </a>
+            `;
+        } else if (mDomain) {
+            modalWebsiteContainer.innerHTML = `
+                <span style="color: #475569; font-weight: 500;">🌐 ${escapeHtml(mDomain)}</span>
+            `;
+        } else {
+            modalWebsiteContainer.innerHTML = `<span style="color: #94a3b8; font-size: 0.8rem;">Resolving via Tavily on Save</span>`;
+        }
+    }
+    document.getElementById("modal-lead-headcount").innerText = exp.company_employees_count ? `${exp.company_employees_count} Employees` : "20–100 Employees";
+    
+    const countryEl = document.getElementById("modal-lead-country");
+    countryEl.className = `country-pill country-${countryIso.toLowerCase()}`;
+    countryEl.innerText = countryIso;
+
+    document.getElementById("modal-lead-industry").innerText = industry;
+    document.getElementById("modal-lead-score").innerText = `${score} / 1.00`;
+
+    // Render Tag Chips
+    const tagsContainer = document.getElementById("modal-lead-tags");
+    const categories = exp.company_categories_and_keywords || [];
+    if (categories.length > 0) {
+        tagsContainer.innerHTML = categories.map(tag => 
+            `<span class="tag-chip" style="font-size: 0.75rem; background: #f1f5f9; color: #475569;">${escapeHtml(tag)}</span>`
+        ).join("");
+    } else {
+        tagsContainer.innerHTML = `<span class="tag-chip" style="font-size: 0.75rem; background: #f1f5f9; color: #475569;">${escapeHtml(industry)}</span>`;
+    }
+
+    // LinkedIn Button
+    const linkedInContainer = document.getElementById("modal-lead-linkedin-container");
+    if (item.linkedin_url) {
+        linkedInContainer.innerHTML = `
+            <a href="${item.linkedin_url}" target="_blank" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 0.4rem; color: #0284c7; border-color: #bae6fd; font-weight: 600; text-decoration: none;">
+                <span style="font-weight: 800;">in</span> View LinkedIn Profile ↗
+            </a>
+        `;
+    } else {
+        linkedInContainer.innerHTML = `<span style="font-size: 0.82rem; color: var(--text-muted);">No LinkedIn Profile</span>`;
+    }
+
+    // Save Button in Modal
+    updateModalSaveButton(idx);
+
+    // Show Modal
+    const modal = document.getElementById("cs-lead-modal");
+    if (modal) modal.style.display = "flex";
+}
+
+function updateModalSaveButton(idx) {
+    const saveContainer = document.getElementById("modal-lead-save-container");
+    if (!saveContainer) return;
+    const item = lastCoresignalResult?.data?.[idx];
+    const isSaved = savedLeadIndices.has(idx) || Boolean(item?.is_saved_in_db);
+
+    if (isSaved) {
+        const label = (item?.is_saved_in_db && !savedLeadIndices.has(idx)) ? "In Database" : "Lead Saved";
+        saveContainer.innerHTML = `
+            <button type="button" class="btn btn-saved" disabled>
+                <span class="btn-icon">✓</span> ${label}
+            </button>
+        `;
+    } else {
+        saveContainer.innerHTML = `
+            <button type="button" class="btn btn-primary" id="modal-btn-save" onclick="saveLeadFromModal()">
+                <span class="btn-icon">💾</span> Save to Leads Database
+            </button>
+        `;
+    }
+}
+
+function closeLeadModal() {
+    const modal = document.getElementById("cs-lead-modal");
+    if (modal) modal.style.display = "none";
+    currentModalIdx = null;
+}
+
+async function saveLeadFromModal() {
+    if (currentModalIdx !== null) {
+        await saveSingleCoresignalLead(currentModalIdx);
+    }
+}
+
+async function saveSingleCoresignalLead(idx) {
+    if (!lastCoresignalResult || !lastCoresignalResult.data || !lastCoresignalResult.data[idx]) return;
+    const item = lastCoresignalResult.data[idx];
+    const btn = document.getElementById(`btn-save-${idx}`);
+    const modalBtn = document.getElementById("modal-btn-save");
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Saving...';
+    }
+    if (modalBtn) {
+        modalBtn.disabled = true;
+        modalBtn.innerHTML = 'Saving...';
+    }
+
+    try {
+        const response = await fetch("/api/coresignal/save-leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ leads: [item] })
+        });
+        const res = await response.json();
+
+        if (res.success && res.saved_count > 0) {
+            savedLeadIndices.add(idx);
+            
+            // If backend resolved the website via Tavily, update item and row DOM
+            if (res.saved_leads && res.saved_leads[0]) {
+                const sl = res.saved_leads[0];
+                item.website_url = sl.website_url;
+                item.domain = sl.domain;
+                const siteCont = document.getElementById(`row-site-container-${idx}`);
+                if (siteCont && sl.website_url) {
+                    siteCont.innerHTML = `<a href="${sl.website_url}" target="_blank" onclick="event.stopPropagation()" style="font-size: 0.78rem; color: #16a34a; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;" title="Verified Official Website">✓ 🌐 ${escapeHtml(sl.domain)} ↗</a>`;
+                }
+            }
+
+            showToast(`✓ Lead saved with verified website! Available on the View Extracted Leads page.`);
+            
+            if (btn) {
+                btn.className = "btn btn-sm btn-saved";
+                btn.innerHTML = '<span class="btn-icon">✓</span> Lead Saved';
+                btn.disabled = true;
+            }
+            if (currentModalIdx === idx) {
+                updateModalSaveButton(idx);
+            }
+
+            // Update sidebar count if available
+            const navBadge = document.getElementById("nav-leads-count");
+            if (navBadge && res.stats) {
+                navBadge.innerText = res.stats.total_companies;
+            }
+        } else {
+            throw new Error(res.errors ? res.errors.join(", ") : "Failed to save lead");
+        }
+    } catch (err) {
+        showToast(`Save error: ${err.message}`, true);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = "💾 Save";
+        }
+        if (currentModalIdx === idx) {
+            updateModalSaveButton(idx);
+        }
+    }
+}
+
+async function saveAllCoresignalLeads() {
+    if (!lastCoresignalResult || !lastCoresignalResult.data || lastCoresignalResult.data.length === 0) {
+        showToast("No leads to save.", true);
+        return;
+    }
+
+    const items = lastCoresignalResult.data;
+    const btn = document.getElementById("btn-save-all-leads");
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="progress-spinner" style="width: 14px; height: 14px; margin-right: 6px;"></span> Resolving Websites & Saving All...';
+    }
+
+    try {
+        const response = await fetch("/api/coresignal/save-leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ leads: items })
+        });
+        const res = await response.json();
+
+        if (res.success) {
+            showToast(`✓ Successfully saved ${res.saved_count} leads with verified websites!`);
+            
+            // Update items and DOM with verified websites
+            if (res.saved_leads && Array.isArray(res.saved_leads)) {
+                res.saved_leads.forEach((sl, idx) => {
+                    if (items[idx]) {
+                        items[idx].website_url = sl.website_url;
+                        items[idx].domain = sl.domain;
+                    }
+                    const siteCont = document.getElementById(`row-site-container-${idx}`);
+                    if (siteCont && sl.website_url) {
+                        siteCont.innerHTML = `<a href="${sl.website_url}" target="_blank" onclick="event.stopPropagation()" style="font-size: 0.78rem; color: #16a34a; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;" title="Verified Official Website">✓ 🌐 ${escapeHtml(sl.domain)} ↗</a>`;
+                    }
+                });
+            }
+
+            // Mark individual buttons as saved
+            items.forEach((_, idx) => {
+                savedLeadIndices.add(idx);
+                const b = document.getElementById(`btn-save-${idx}`);
+                if (b) {
+                    b.className = "btn btn-sm btn-saved";
+                    b.innerHTML = '<span class="btn-icon">✓</span> Lead Saved';
+                    b.disabled = true;
+                }
+            });
+
+            if (btn) {
+                btn.className = "btn btn-saved";
+                btn.innerHTML = `✓ All ${res.saved_count} Leads Saved`;
+                btn.disabled = true;
+            }
+
+            if (currentModalIdx !== null) {
+                updateModalSaveButton(currentModalIdx);
+            }
+
+            const navBadge = document.getElementById("nav-leads-count");
+            if (navBadge && res.stats) {
+                navBadge.innerText = res.stats.total_companies;
+            }
+        } else {
+            throw new Error(res.error || "Failed to save leads");
+        }
+    } catch (err) {
+        showToast(`Save error: ${err.message}`, true);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="btn-icon">💾</span> Save All to Leads Database';
+        }
+    }
+}
+
+function copyEsQuery() {
+    const code = document.getElementById("cs-es-query-code")?.textContent || "";
+    navigator.clipboard.writeText(code).then(() => {
+        showToast("Copied Elasticsearch DSL query to clipboard!");
+    }).catch(() => {
+        showToast("Failed to copy query to clipboard.", true);
+    });
+}
+
+// Ready console logging and Ctrl+Enter keyboard shortcut
+document.addEventListener("DOMContentLoaded", () => {
+    console.log(
+        "%c[Coresignal Agentic Search Console Ready]%c Click 'Execute Agentic Search' to trigger live discovery.",
+        "color: #10b981; font-weight: bold; font-size: 13px;",
+        "color: #475569; font-size: 13px;"
+    );
+
+    const promptInput = document.getElementById("coresignal-prompt-input");
+    if (promptInput) {
+        promptInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                executeCoresignalSearch();
+            }
+        });
+    }
+
+    // Close modal on escape key
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            closeLeadModal();
+        }
+    });
+
+    // Close modal on click outside backdrop
+    const modal = document.getElementById("cs-lead-modal");
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                closeLeadModal();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

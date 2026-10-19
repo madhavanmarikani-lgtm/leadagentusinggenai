@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}View Extracted Leads — LeadGen AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 class="page-title">Extracted Leads Repository</h1>
+            <p class="page-subtitle">Enterprise repository of all AI-qualified companies and executive decision-makers.</p>
+        </div>
+        <div class="card-actions">
+            <a href="/api/export" class="btn btn-primary">
+                <span class="btn-icon">📥</span> Export All CSV
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Metrics Bar -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-val" id="stat-companies">{{ stats.total_companies }}</div>
+        <div class="metric-lbl">Total Companies</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val" id="stat-people">{{ stats.total_people }}</div>
+        <div class="metric-lbl">Decision Makers</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val" id="stat-industries">{{ stats.total_industries }}</div>
+        <div class="metric-lbl">Target Industries</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val" id="stat-new">{{ stats.new_leads }}</div>
+        <div class="metric-lbl">New Leads</div>
+    </div>
+</div>
+
+<!-- Leads Management Card -->
+<section class="card results-card" style="margin-top: 1.5rem;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1.25rem 1.5rem;">
+        <div class="card-title-group">
+            <h2 class="card-title" style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0;">All Saved Leads ({{ leads|length }})</h2>
+        </div>
+
+        <!-- Filter Controls -->
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; flex-grow: 1; justify-content: flex-end;">
+            <input type="text" id="repo-search" class="search-input" style="width: 100%; max-width: 380px; min-width: 200px;" placeholder="🔍 Search company, domain, executive, or industry..." onkeyup="filterRepositoryTable()">
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; padding: 0.5rem 1.25rem 1.5rem 1.25rem;">
+        <table class="leads-table" style="width: 100%; min-width: 860px; table-layout: fixed; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="width: 24%; text-align: left;">Company & Website</th>
+                    <th style="width: 20%; text-align: left;">Decision-Maker</th>
+                    <th style="width: 14%; text-align: left;">Industry</th>
+                    <th style="width: 8%; text-align: center;">Employees</th>
+                    <th style="width: 9%; text-align: center;">Country</th>
+                    <th style="width: 15%; text-align: left;">Key Need / Intent</th>
+                    <th style="width: 10%; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="repo-table-body">
+                {% if not leads %}
+                <tr class="empty-state-row">
+                    <td colspan="7">
+                        <div class="empty-state" style="padding: 3rem 1rem; text-align: center;">
+                            <span class="empty-icon" style="font-size: 2.5rem; display: block; margin-bottom: 0.75rem;">📂</span>
+                            <h3 style="font-size: 1.15rem; color: #1e293b; margin-bottom: 0.35rem;">No saved leads in database yet</h3>
+                            <p style="color: #64748b; font-size: 0.9rem;">Go to the <a href="/" style="color: #2563eb; font-weight: 600;">Dashboard</a> and search for leads to save verified decision-makers.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                {% for lead in leads %}
+                <tr class="lead-row" data-id="{{ lead.id }}" data-status="{{ lead.status }}" style="transition: background-color 0.15s ease;">
+                    <td style="text-align: left; vertical-align: middle;">
+                        <div class="company-cell" style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="company-logo" style="width: 38px; height: 38px; border-radius: 8px; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.12);">
+                                {{ lead.company_name[:2].upper() }}
+                            </div>
+                            <div style="min-width: 0; overflow: hidden;">
+                                <div class="company-name" style="font-weight: 600; color: #0f172a; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ lead.company_name }}">
+                                    {{ lead.company_name }}
+                                </div>
+                                <div style="margin-top: 3px;">
+                                    {% if lead.website_url %}
+                                    <a href="{{ lead.website_url }}" target="_blank" style="font-size: 0.78rem; color: #2563eb; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; font-weight: 500;" title="Visit {{ lead.domain }}">
+                                        🌐 {{ lead.domain }} <span style="font-size: 0.7rem;">↗</span>
+                                    </a>
+                                    {% else %}
+                                    <span style="font-size: 0.78rem; color: #64748b;">🌐 {{ lead.domain or 'company.com' }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="text-align: left; vertical-align: middle;">
+                        <div>
+                            {% set first_dm = lead.people[0] if (lead.people and lead.people|length > 0) else None %}
+                            {% set dm_name = (first_dm.name if first_dm else lead.decision_maker_name) or lead.c_level_name or 'Executive Leadership' %}
+                            {% set dm_title = (first_dm.title if first_dm else lead.decision_maker_role) or lead.c_level_title or 'Executive' %}
+                            {% set dm_li = (first_dm.linkedin_url if first_dm else lead.linkedin_url) or '' %}
+                            <div style="font-weight: 600; color: #1e293b; font-size: 0.88rem; display: flex; align-items: center; gap: 5px;">
+                                <span>{{ dm_name }}</span>
+                                {% if dm_li %}
+                                <a href="{{ dm_li }}" target="_blank" title="LinkedIn Profile" style="color: #0a66c2; text-decoration: none; font-size: 0.82rem; line-height: 1;">🔗</a>
+                                {% endif %}
+                            </div>
+                            <div style="margin-top: 3px;">
+                                <span class="tag-chip" style="font-size: 0.75rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; padding: 1px 7px;">
+                                    {{ dm_title }}
+                                </span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="text-align: left; vertical-align: middle;">
+                        <span class="tag-chip" style="font-size: 0.8rem; font-weight: 500; background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; white-space: nowrap;">
+                            {{ lead.industry or 'General Business' }}
+                        </span>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle;">
+                        <span class="emp-count-badge" style="font-size: 0.82rem; font-weight: 600;">
+                            {{ lead.employee_count or '20-100' }}
+                        </span>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle;">
+                        <span class="country-pill country-{{ lead.country_code.lower() if lead.country_code else 'us' }}" style="font-size: 0.75rem; font-weight: 600;">
+                            {{ lead.country_code or 'US' }}
+                        </span>
+                    </td>
+                    <td style="text-align: left; vertical-align: middle;">
+                        <p style="font-size: 0.82rem; color: #475569; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ lead.key_need or lead.summary }}">
+                            {{ lead.key_need or lead.summary or 'Verified executive leadership and company profile' }}
+                        </p>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                        <div style="display: inline-flex; gap: 0.35rem; align-items: center; justify-content: center;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openDetailsModalForId({{ lead.id }})" title="View Details" style="padding: 0.35rem 0.65rem; font-size: 0.82rem; font-weight: 600; white-space: nowrap;">
+                                🔍 Details
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="deleteLeadRow({{ lead.id }})" title="Delete Lead" style="padding: 0.35rem 0.55rem; font-size: 0.82rem; color: #dc2626; border-color: #fecaca;">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Include Modal from Dashboard -->
+<div id="details-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title-group">
+                <div class="modal-logo" id="modal-company-logo">CO</div>
+                <div>
+                    <h3 class="modal-title" id="modal-company-name">Company Name</h3>
+                    <a href="#" target="_blank" class="modal-domain" id="modal-company-domain">domain.com ↗</a>
+                </div>
+            </div>
+            <button type="button" class="modal-close" onclick="closeDetailsModal()">×</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="modal-section">
+                <h4 class="section-heading">Overview</h4>
+                <p id="modal-summary" class="section-text"></p>
+                <div class="modal-meta-pills" id="modal-meta-pills"></div>
+            </div>
+
+            <div class="modal-section">
+                <h4 class="section-heading">Detected Intent / Need</h4>
+                <div class="opportunity-box" id="modal-opportunity"></div>
+            </div>
+
+            <div class="modal-section">
+                <h4 class="section-heading">C-Level Leadership & Decision-Makers</h4>
+                <div id="modal-people-list" class="people-list"></div>
+            </div>
+
+            <div class="modal-section apollo-box">
+                <div class="apollo-header">
+                    <span class="apollo-spark">⚡</span>
+                    <b>Executive Verification & Enrichment</b>
+                </div>
+                <p class="apollo-desc" id="modal-apollo-desc">Enrich this lead with verified direct work emails, mobile dials, exact headcount, technologies, and corporate intelligence.</p>
+                <div id="modal-apollo-techs" style="margin-bottom: 0.75rem;"></div>
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-modal-apollo" onclick="enrichCurrentLeadWithApollo()">
+                        ⚡ Enrich Profile
+                    </button>
+                    <span id="modal-apollo-status-badge" style="font-size: 0.8rem; color: #94a3b8;"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <a href="#" target="_blank" class="btn btn-outline" id="modal-visit-site">🌐 Visit Website</a>
+            <button type="button" class="btn btn-primary" onclick="closeDetailsModal()">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
