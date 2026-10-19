@@ -52,16 +52,16 @@
 
     <!-- Table -->
     <div class="table-container" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; padding: 0.5rem 1.25rem 1.5rem 1.25rem;">
-        <table class="leads-table" style="width: 100%; min-width: 860px; table-layout: fixed; border-collapse: collapse;">
+        <table class="leads-table" style="width: 100%; min-width: 1100px; table-layout: fixed; border-collapse: collapse;">
             <thead>
                 <tr>
-                    <th style="width: 24%; text-align: left;">Company & Website</th>
-                    <th style="width: 20%; text-align: left;">Decision-Maker</th>
-                    <th style="width: 14%; text-align: left;">Industry</th>
-                    <th style="width: 8%; text-align: center;">Employees</th>
-                    <th style="width: 9%; text-align: center;">Country</th>
-                    <th style="width: 15%; text-align: left;">Key Need / Intent</th>
-                    <th style="width: 10%; text-align: center;">Actions</th>
+                    <th style="width: 22%; min-width: 210px; text-align: left;">Company & Website</th>
+                    <th style="width: 20%; min-width: 190px; text-align: left;">Decision-Maker</th>
+                    <th style="width: 15%; min-width: 140px; text-align: left;">Industry</th>
+                    <th style="width: 10%; min-width: 100px; text-align: center; padding: 0.85rem 0.5rem;">Employees</th>
+                    <th style="width: 8%; min-width: 80px; text-align: center; padding: 0.85rem 0.5rem;">Country</th>
+                    <th style="width: 15%; min-width: 140px; text-align: center;">Key Need / Intent</th>
+                    <th style="width: 10%; min-width: 100px; text-align: center; padding: 0.85rem 0.5rem;">Actions</th>
                 </tr>
             </thead>
             <tbody id="repo-table-body">
@@ -118,27 +118,32 @@
                             </div>
                         </div>
                     </td>
-                    <td style="text-align: left; vertical-align: middle;">
-                        <span class="tag-chip" style="font-size: 0.8rem; font-weight: 500; background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; white-space: nowrap;">
+                    <td style="text-align: left; vertical-align: middle; overflow: hidden;">
+                        <span class="tag-chip industry-chip" style="font-size: 0.78rem; font-weight: 500; background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; display: inline-block; max-width: 100%; white-space: normal; word-break: break-word; line-height: 1.3; padding: 3px 8px; border-radius: 6px;" title="{{ lead.industry }}">
                             {{ lead.industry or 'General Business' }}
                         </span>
                     </td>
-                    <td style="text-align: center; vertical-align: middle;">
+                    <td style="text-align: center; vertical-align: middle; padding: 0.85rem 0.5rem; white-space: nowrap;">
                         <span class="emp-count-badge" style="font-size: 0.82rem; font-weight: 600;">
                             {{ lead.employee_count or '20-100' }}
                         </span>
                     </td>
-                    <td style="text-align: center; vertical-align: middle;">
+                    <td style="text-align: center; vertical-align: middle; padding: 0.85rem 0.5rem; white-space: nowrap;">
                         <span class="country-pill country-{{ lead.country_code.lower() if lead.country_code else 'us' }}" style="font-size: 0.75rem; font-weight: 600;">
                             {{ lead.country_code or 'US' }}
                         </span>
                     </td>
-                    <td style="text-align: left; vertical-align: middle;">
-                        <p style="font-size: 0.82rem; color: #475569; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ lead.key_need or lead.summary }}">
-                            {{ lead.key_need or lead.summary or 'Verified executive leadership and company profile' }}
-                        </p>
+                    <td style="text-align: center; vertical-align: middle; padding: 0.85rem 0.5rem;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                            <div style="font-size: 0.78rem; color: #475569; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; max-width: 145px; line-height: 1.3;" title="{{ lead.key_need or lead.summary }}">
+                                {{ lead.key_need or lead.summary or 'Verified leadership' }}
+                            </div>
+                            <button type="button" class="btn-intent-popup" onclick="openIntentModalForLead({{ lead.id }})" title="View Full Key Need & Intent" style="display: inline-flex; align-items: center; gap: 4px; padding: 0.28rem 0.7rem; font-size: 0.76rem; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: all 0.15s ease;">
+                                <span>👁️ Show More</span>
+                            </button>
+                        </div>
                     </td>
-                    <td style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                    <td style="text-align: center; vertical-align: middle; padding: 0.85rem 0.5rem; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 0.35rem; align-items: center; justify-content: center;">
                             <button type="button" class="btn btn-sm btn-outline" onclick="openDetailsModalForId({{ lead.id }})" title="View Details" style="padding: 0.35rem 0.65rem; font-size: 0.82rem; font-weight: 600; white-space: nowrap;">
                                 🔍 Details
@@ -209,4 +214,77 @@
         </div>
     </div>
 </div>
+
+<!-- Dedicated Key Need & Strategic Intent Modal Popup -->
+<div id="intent-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog" style="max-width: 580px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 1.25rem 1.5rem; border-bottom: 1px solid #334155;">
+            <div class="modal-title-group" style="display: flex; align-items: center; gap: 0.75rem;">
+                <div id="intent-modal-logo" style="width: 42px; height: 42px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; color: #ffffff; flex-shrink: 0;">
+                    CO
+                </div>
+                <div>
+                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; font-weight: 700;">Strategic Lead Intelligence</div>
+                    <h3 id="intent-modal-company" style="margin: 0; font-size: 1.2rem; font-weight: 700; color: #ffffff;">Company Name</h3>
+                </div>
+            </div>
+            <button type="button" class="modal-close" onclick="closeIntentModal()" style="color: #94a3b8; font-size: 1.75rem; line-height: 1; background: none; border: none; cursor: pointer; transition: color 0.15s ease;">×</button>
+        </div>
+
+        <div class="modal-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; background: #ffffff;">
+            <!-- Executive Context Bar -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.85rem 1rem;">
+                <div>
+                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; font-weight: 600;">Decision Maker</div>
+                    <div id="intent-modal-dm" style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Patrick Hutchinson</div>
+                    <div id="intent-modal-role" style="font-size: 0.8rem; color: #2563eb; font-weight: 600; margin-top: 1px;">Chair, Executive Committee</div>
+                </div>
+                <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+                    <span id="intent-modal-industry" class="tag-chip" style="font-size: 0.75rem; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-weight: 500;">Fisheries</span>
+                    <span id="intent-modal-employees" class="emp-count-badge" style="font-size: 0.75rem;">👥 20-100</span>
+                    <span id="intent-modal-country" class="country-pill country-au" style="font-size: 0.75rem; font-weight: 700;">AU</span>
+                </div>
+            </div>
+
+            <!-- Key Need / Detected Intent Box -->
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1rem;">🎯</span> Key Need & Strategic Intent
+                    </span>
+                    <button type="button" onclick="copyIntentText()" id="btn-copy-intent" style="font-size: 0.78rem; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                        <span>📋</span> Copy Intent
+                    </button>
+                </div>
+                <div id="intent-modal-text" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 8px; padding: 1.1rem 1.25rem; font-size: 0.92rem; line-height: 1.6; color: #1e3a8a; font-weight: 500; white-space: pre-wrap; word-break: break-word;">
+                    Loading intent...
+                </div>
+            </div>
+
+            <!-- Company Overview / Summary -->
+            <div id="intent-modal-summary-section" style="display: none; flex-direction: column; gap: 0.4rem;">
+                <span style="font-size: 0.8rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 5px;">
+                    <span>🏢</span> Company Profile Overview
+                </span>
+                <p id="intent-modal-summary" style="margin: 0; font-size: 0.85rem; color: #475569; line-height: 1.55; background: #f8fafc; padding: 0.85rem 1rem; border-radius: 6px; border: 1px solid #e2e8f0; word-break: break-word;"></p>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+            <a id="intent-modal-website" href="#" target="_blank" class="btn btn-outline" style="font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; text-decoration: none;">
+                🌐 Visit Website ↗
+            </a>
+            <button type="button" class="btn btn-primary" onclick="closeIntentModal()" style="font-size: 0.85rem; font-weight: 600; padding: 0.45rem 1.35rem;">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Embed saved leads data in client-side memory for instant popup display
+    window.allSavedLeads = {{ leads|tojson }};
+</script>
 {% endblock %}

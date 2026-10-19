@@ -647,3 +647,129 @@ async function deleteLeadRow(companyId) {
         showToast("Error deleting lead.", true);
     }
 }
+
+/**
+ * Opens dedicated modal displaying Key Need & Strategic Intent for a lead.
+ */
+async function openIntentModalForLead(companyId) {
+    console.log(`[Intent Modal] Opening intent modal for lead ID: ${companyId}`);
+    
+    let lead = null;
+    if (window.allSavedLeads && Array.isArray(window.allSavedLeads)) {
+        lead = window.allSavedLeads.find(l => l.id === companyId);
+    }
+    
+    if (!lead && typeof currentLeads !== "undefined" && Array.isArray(currentLeads)) {
+        lead = currentLeads.find(l => l.id === companyId);
+    }
+    
+    if (!lead) {
+        try {
+            const res = await fetch(`/api/leads/${companyId}`);
+            const data = await res.json();
+            if (data.success && data.lead) {
+                lead = data.lead;
+            }
+        } catch (e) {
+            console.error("[Intent Modal Error] Could not load lead:", e);
+        }
+    }
+    
+    if (lead) {
+        populateAndShowIntentModal(lead);
+    } else {
+        showToast("Could not load lead intent details.", true);
+    }
+}
+
+function populateAndShowIntentModal(lead) {
+    const compName = lead.company_name || "Company";
+    const nameEl = document.getElementById("intent-modal-company");
+    if (nameEl) nameEl.innerText = compName;
+    
+    const logoEl = document.getElementById("intent-modal-logo");
+    if (logoEl) logoEl.innerText = compName.substring(0, 2).toUpperCase();
+    
+    const firstDm = (lead.people && lead.people.length > 0) ? lead.people[0] : null;
+    const dmName = (firstDm ? firstDm.name : lead.decision_maker_name) || lead.c_level_name || "Executive Leadership";
+    const dmRole = (firstDm ? firstDm.title : lead.decision_maker_role) || lead.c_level_title || "Executive Leader";
+    
+    const dmEl = document.getElementById("intent-modal-dm");
+    if (dmEl) dmEl.innerText = dmName;
+    
+    const roleEl = document.getElementById("intent-modal-role");
+    if (roleEl) roleEl.innerText = dmRole;
+    
+    const indEl = document.getElementById("intent-modal-industry");
+    if (indEl) indEl.innerText = lead.industry || "General Business";
+    
+    const countryIso = (lead.country_code || "US").toUpperCase();
+    const countryEl = document.getElementById("intent-modal-country");
+    if (countryEl) {
+        countryEl.innerText = countryIso;
+        countryEl.className = `country-pill country-${countryIso.toLowerCase()}`;
+    }
+    
+    const empEl = document.getElementById("intent-modal-employees");
+    if (empEl) empEl.innerText = `👥 ${lead.employee_count || '20-100'}`;
+    
+    const intentText = lead.key_need || lead.summary || "Verified executive leadership and enterprise qualification.";
+    const textEl = document.getElementById("intent-modal-text");
+    if (textEl) textEl.innerText = intentText;
+    
+    const summarySection = document.getElementById("intent-modal-summary-section");
+    const summaryEl = document.getElementById("intent-modal-summary");
+    if (summarySection && summaryEl) {
+        if (lead.summary && lead.summary.trim() !== intentText.trim()) {
+            summaryEl.innerText = lead.summary;
+            summarySection.style.display = "flex";
+        } else {
+            summarySection.style.display = "none";
+        }
+    }
+    
+    const siteLink = document.getElementById("intent-modal-website");
+    if (siteLink) {
+        const dest = lead.website_url || (lead.domain ? `https://${lead.domain}` : "#");
+        siteLink.href = dest;
+    }
+    
+    const modal = document.getElementById("intent-modal");
+    if (modal) modal.style.display = "flex";
+}
+
+function closeIntentModal() {
+    const modal = document.getElementById("intent-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function copyIntentText() {
+    const textEl = document.getElementById("intent-modal-text");
+    if (!textEl) return;
+    navigator.clipboard.writeText(textEl.innerText).then(() => {
+        const btn = document.getElementById("btn-copy-intent");
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = "<span>✅</span> Copied to Clipboard!";
+            setTimeout(() => { btn.innerHTML = orig; }, 2000);
+        }
+        showToast("Intent copied to clipboard!");
+    }).catch(e => {
+        console.error("Clipboard copy failed:", e);
+    });
+}
+
+// Global modal background click and Escape key listeners
+document.addEventListener("click", (e) => {
+    if (e.target.classList && e.target.classList.contains("modal-backdrop")) {
+        e.target.style.display = "none";
+    }
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        document.querySelectorAll(".modal-backdrop").forEach(m => {
+            m.style.display = "none";
+        });
+    }
+});
